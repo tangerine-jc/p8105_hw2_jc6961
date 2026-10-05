@@ -14,6 +14,7 @@ library(tidyverse)
 ### Import and clean the subway data
 
 ```{r subway_import, message = FALSE}
+```{r}
 subway_df =
   read_csv(
     "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv",
@@ -54,6 +55,7 @@ train names may contain letters or numbers.
 ### Count distinct stations and examine entry permission
 
 ```{r subway_summary}
+```{r}
 station_df =
   subway_df |>
   distinct(line, station_name)
@@ -83,6 +85,7 @@ For a logical variable, the mean equals the proportion of TRUE values.
 ### Reshape the route columns
 
 ```{r subway_routes}
+```{r}
 subway_tidy_df =
   subway_df |>
   pivot_longer(
@@ -111,3 +114,103 @@ The reshaped dataset has separate variables for the original route slot
 represents an entrance/exit and one of the routes it serves; unused route
 slots are removed. There are `r nrow(a_station_df)` distinct stations
 serving the A train, of which `r nrow(a_ada_station_df)` are ADA compliant.
+
+## Problem 2
+
+### Import and combine the Trash Wheel data
+
+```{r trash_import, message = FALSE}
+mr_trash_df =
+  readxl::read_excel(
+    "./data/202509 Trash Wheel Collection Data.xlsx",
+    sheet = "Mr. Trash Wheel",
+    range = "A2:N710") |>
+  janitor::clean_names() |>
+  drop_na(dumpster) |>
+  mutate(
+    year = as.integer(year),
+    sports_balls = as.integer(round(sports_balls)),
+    trash_wheel = "Mr. Trash Wheel")
+
+professor_trash_df =
+  readxl::read_excel(
+    "./data/202509 Trash Wheel Collection Data.xlsx",
+    sheet = "Professor Trash Wheel",
+    range = "A2:M135") |>
+  janitor::clean_names() |>
+  drop_na(dumpster) |>
+  mutate(
+    year = as.integer(year),
+    trash_wheel = "Professor Trash Wheel")
+
+gwynnda_df =
+  readxl::read_excel(
+    "./data/202509 Trash Wheel Collection Data.xlsx",
+    sheet = "Gwynns Falls Trash Wheel",
+    range = "A2:L352") |>
+  janitor::clean_names() |>
+  drop_na(dumpster) |>
+  mutate(
+    year = as.integer(year),
+    trash_wheel = "Gwynnda")
+
+trash_df =
+  bind_rows(mr_trash_df, professor_trash_df, gwynnda_df) |>
+  relocate(trash_wheel, dumpster)
+
+head(trash_df)
+```
+
+I used the sheet and range arguments to select the appropriate data
+rectangles and exclude notes and unrelated columns. The ranges begin at
+the column-header row and include a final totals row, which is removed
+using `drop_na(dumpster)`. I cleaned variable names, converted year to an
+integer consistently across sheets, and rounded Mr. Trash Wheel's
+sports-ball counts before converting them to integers. I added a variable
+identifying each wheel before combining the three datasets with
+`bind_rows()`.
+
+The combined tidy dataset has `r nrow(trash_df)` observations and
+`r ncol(trash_df)` variables, with `r nrow(mr_trash_df)` observations from
+Mr. Trash Wheel, `r nrow(professor_trash_df)` from Professor Trash Wheel,
+and `r nrow(gwynnda_df)` from Gwynnda. Each observation represents a
+single dumpster collection from a particular wheel. Important variables
+include collection date, weight in tons, volume in cubic yards, and counts
+of plastic bottles, cigarette butts, and other trash. Dumpster numbers are
+only unique within a wheel. Sports-ball counts are only available for
+Mr. Trash Wheel, and Gwynnda has no glass-bottle column. Combining the
+sheets leaves these unavailable values as NA rather than treating them
+as zero.
+
+### Calculate the requested totals
+
+```{r trash_totals}
+professor_weight_df =
+  trash_df |>
+  filter(trash_wheel == "Professor Trash Wheel") |>
+  select(weight_tons) |>
+  drop_na(weight_tons)
+
+gwynnda_june_df =
+  trash_df |>
+  filter(trash_wheel == "Gwynnda", year == 2022, month == "June") |>
+  select(cigarette_butts) |>
+  drop_na(cigarette_butts)
+
+# Total = mean * number of non-missing observations.
+professor_total_weight =
+  mean(pull(professor_weight_df, weight_tons)) * nrow(professor_weight_df)
+
+gwynnda_june_cigarettes =
+  mean(pull(gwynnda_june_df, cigarette_butts)) * nrow(gwynnda_june_df)
+```
+
+For the available data, Professor Trash Wheel collected a total of
+`r round(professor_total_weight, 2)` tons of trash, based on
+`r nrow(professor_weight_df)` non-missing weight records.
+Gwynnda collected `r round(gwynnda_june_cigarettes)` cigarette butts
+in June 2022, based on `r nrow(gwynnda_june_df)` non-missing records.
+The totals are calculated as the mean multiplied by the number of
+non-missing observations; the observation counts are computed from the
+data rather than entered manually.
+
