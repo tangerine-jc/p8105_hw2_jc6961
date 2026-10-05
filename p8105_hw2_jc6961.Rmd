@@ -13,8 +13,7 @@ library(tidyverse)
 
 ### Import and clean the subway data
 
-```{r subway_import, message = FALSE}
-```{r}
+```{r warning=FALSE}
 subway_df =
   read_csv(
     "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv",
@@ -43,18 +42,10 @@ subway_df =
 head(subway_df)
 ```
 
-The cleaned subway dataset has `r nrow(subway_df)` rows and
-`r ncol(subway_df)` columns. Each row describes a subway entrance or exit.
-The retained variables describe the line, station name, station latitude
-and longitude, routes served, entry permission, vending availability,
-entrance type, and ADA compliance. I cleaned the column names, retained
-only the requested variables, and converted entry permission from YES/NO
-to TRUE/FALSE. I imported all route columns as character variables because
-train names may contain letters or numbers.
+The cleaned subway dataset has `r nrow(subway_df)` rows and `r ncol(subway_df)` columns. It contains line and station information, station location, routes served, entry, vending, entrance type, and ADA status. I cleaned the variable names, kept the requested variables, and changed `entry` from YES/NO to TRUE/FALSE. The data are not tidy because routes are stored in multiple columns.
 
 ### Count distinct stations and examine entry permission
 
-```{r subway_summary}
 ```{r}
 station_df =
   subway_df |>
@@ -70,21 +61,13 @@ no_vending_df =
   filter(vending == "NO")
 ```
 
-There are `r nrow(station_df)` distinct stations, identified by the
-combination of line and station name. Of these,
-`r nrow(ada_station_df)` are ADA compliant. Counting distinct stations
-avoids counting a station repeatedly because it has multiple entrances.
+There are `r nrow(station_df)` distinct stations, and `r nrow(ada_station_df)` are ADA compliant.
 
-Among the `r nrow(no_vending_df)` entrances/exits without vending,
-`r nrow(filter(no_vending_df, entry == TRUE))` allow entry.
-The proportion allowing entry is
-`r round(mean(pull(no_vending_df, entry)), 4)`, or
-`r round(mean(pull(no_vending_df, entry)) * 100, 2)`%.
-For a logical variable, the mean equals the proportion of TRUE values.
+Among entrances/exits without vending, `r round(mean(pull(no_vending_df, entry)) * 100, 2)`% allow entry.
+
 
 ### Reshape the route columns
 
-```{r subway_routes}
 ```{r}
 subway_tidy_df =
   subway_df |>
@@ -109,17 +92,14 @@ a_ada_station_df =
 head(subway_tidy_df)
 ```
 
-The reshaped dataset has separate variables for the original route slot
-(`route_number`) and the train designation (`route_name`). Each row
-represents an entrance/exit and one of the routes it serves; unused route
-slots are removed. There are `r nrow(a_station_df)` distinct stations
-serving the A train, of which `r nrow(a_ada_station_df)` are ADA compliant.
+After reshaping, route number and route name are separate variables. There are `r nrow(a_station_df)` distinct stations serving the A train, and `r nrow(a_ada_station_df)` are ADA compliant.
+
 
 ## Problem 2
 
 ### Import and combine the Trash Wheel data
 
-```{r trash_import, message = FALSE}
+```{r}
 mr_trash_df =
   readxl::read_excel(
     "./data/202509 Trash Wheel Collection Data.xlsx",
@@ -161,30 +141,14 @@ trash_df =
 head(trash_df)
 ```
 
-I used the sheet and range arguments to select the appropriate data
-rectangles and exclude notes and unrelated columns. The ranges begin at
-the column-header row and include a final totals row, which is removed
-using `drop_na(dumpster)`. I cleaned variable names, converted year to an
-integer consistently across sheets, and rounded Mr. Trash Wheel's
-sports-ball counts before converting them to integers. I added a variable
-identifying each wheel before combining the three datasets with
-`bind_rows()`.
+I imported the three Trash Wheel sheets using the appropriate sheet and range arguments to exclude notes and non-data entries. I cleaned the variable names, removed rows without dumpster data, and added a variable identifying each Trash Wheel. For Mr. Trash Wheel, sports balls were rounded and converted to integers.
 
-The combined tidy dataset has `r nrow(trash_df)` observations and
-`r ncol(trash_df)` variables, with `r nrow(mr_trash_df)` observations from
-Mr. Trash Wheel, `r nrow(professor_trash_df)` from Professor Trash Wheel,
-and `r nrow(gwynnda_df)` from Gwynnda. Each observation represents a
-single dumpster collection from a particular wheel. Important variables
-include collection date, weight in tons, volume in cubic yards, and counts
-of plastic bottles, cigarette butts, and other trash. Dumpster numbers are
-only unique within a wheel. Sports-ball counts are only available for
-Mr. Trash Wheel, and Gwynnda has no glass-bottle column. Combining the
-sheets leaves these unavailable values as NA rather than treating them
-as zero.
+The combined tidy dataset has `r nrow(trash_df)` observations and `r ncol(trash_df)` variables. Each row represents one dumpster collection. Key variables include collection date, weight, volume, plastic bottles, and cigarette butts.
+
 
 ### Calculate the requested totals
 
-```{r trash_totals}
+```{r}
 professor_weight_df =
   trash_df |>
   filter(trash_wheel == "Professor Trash Wheel") |>
@@ -197,20 +161,138 @@ gwynnda_june_df =
   select(cigarette_butts) |>
   drop_na(cigarette_butts)
 
-# Total = mean * number of non-missing observations.
 professor_total_weight =
-  mean(pull(professor_weight_df, weight_tons)) * nrow(professor_weight_df)
+  sum(pull(professor_weight_df, weight_tons))
 
 gwynnda_june_cigarettes =
-  mean(pull(gwynnda_june_df, cigarette_butts)) * nrow(gwynnda_june_df)
+  sum(pull(gwynnda_june_df, cigarette_butts))
 ```
 
-For the available data, Professor Trash Wheel collected a total of
-`r round(professor_total_weight, 2)` tons of trash, based on
-`r nrow(professor_weight_df)` non-missing weight records.
-Gwynnda collected `r round(gwynnda_june_cigarettes)` cigarette butts
-in June 2022, based on `r nrow(gwynnda_june_df)` non-missing records.
-The totals are calculated as the mean multiplied by the number of
-non-missing observations; the observation counts are computed from the
-data rather than entered manually.
+Professor Trash Wheel collected `r round(professor_total_weight, 2)` tons of trash in the available data.
 
+Gwynnda collected `r format(round(gwynnda_june_cigarettes), scientific = FALSE, big.mark = ",")` cigarette butts in June 2022.
+
+
+## Problem 3
+
+### Import and clean the baseline demographics
+
+```{r}
+baseline_raw_df =
+  read_csv(
+    "./data/MCI_baseline.csv",
+    skip = 1,
+    na = c("NA", "", ".")) |>
+  janitor::clean_names() |>
+  mutate(
+    sex = case_match(
+      sex,
+      1 ~ "male",
+      0 ~ "female"),
+    sex = as.factor(sex),
+    apoe4 = case_match(
+      apoe4,
+      1 ~ "carrier",
+      0 ~ "non-carrier"),
+    apoe4 = as.factor(apoe4))
+
+baseline_excluded_df =
+  baseline_raw_df |>
+  filter(age_at_onset <= current_age)
+
+baseline_df =
+  baseline_raw_df |>
+  filter(is.na(age_at_onset) | age_at_onset > current_age)
+
+head(baseline_df)
+```
+
+I skipped the first descriptive row, cleaned the variable names, treated missing-value codes as `NA`, and converted sex and APOE4 status from numeric codes to factors. Participants who already had MCI at baseline were removed. The cleaned data are tidy, with one row per participant.
+
+After excluding `r nrow(baseline_excluded_df)` participants who had MCI at baseline, the study included `r nrow(baseline_df)` participants.
+
+
+```{r}
+mci_developed_df =
+  baseline_df |>
+  filter(!is.na(age_at_onset))
+
+women_df =
+  baseline_df |>
+  filter(sex == "female")
+```
+
+Among the eligible participants, `r nrow(mci_developed_df)` developed MCI during follow-up. The average baseline age is `r round(mean(pull(baseline_df, current_age), na.rm = TRUE), 2)` years. Among women, `r round(mean(pull(women_df, apoe4) == "carrier") * 100, 1)`% are APOE4 carriers.
+
+
+### Import and tidy the longitudinal biomarker data
+
+```{r}
+amyloid_df =
+  read_csv(
+    "./data/mci_amyloid.csv",
+    skip = 1,
+    na = c("NA", "Na", "", ".")) |>
+  janitor::clean_names() |>
+  rename(id = study_id) |>
+  pivot_longer(
+    baseline:time_8,
+    names_to = "time",
+    values_to = "amyloid_ratio") |>
+  mutate(
+    time = case_match(
+      time,
+      "baseline" ~ 0,
+      "time_2" ~ 2,
+      "time_4" ~ 4,
+      "time_6" ~ 6,
+      "time_8" ~ 8))
+
+head(amyloid_df)
+```
+
+For the biomarker data, I skipped the descriptive first row, cleaned the variable names, renamed the participant ID to match the baseline data, and treated the missing-value codes as `NA`. I reshaped the repeated amyloid measurements into long format, with time recorded as years since baseline.
+
+The tidy biomarker dataset contains `r nrow(distinct(amyloid_df, id))` participants and `r nrow(distinct(amyloid_df, time))` scheduled measurement times. Each row represents one participant at one time point. There are `r nrow(filter(amyloid_df, is.na(amyloid_ratio)))` missing amyloid-ratio values.
+
+### Check for unmatched participants
+
+```{r}
+baseline_only_df =
+  baseline_df |>
+  filter(!(id %in% pull(amyloid_df, id))) |>
+  select(id)
+
+amyloid_only_df =
+  amyloid_df |>
+  filter(!(id %in% pull(baseline_df, id))) |>
+  distinct(id)
+
+amyloid_only_raw_df =
+  amyloid_df |>
+  filter(!(id %in% pull(baseline_raw_df, id))) |>
+  distinct(id)
+```
+
+There are `r nrow(baseline_only_df)` participants in the eligible baseline dataset who do not appear in the biomarker dataset, and `r nrow(amyloid_only_df)` participants in the biomarker dataset who do not appear in the eligible baseline dataset.
+
+Of the biomarker-only participants, `r nrow(amyloid_only_raw_df)` (IDs `r pull(amyloid_only_raw_df, id)`) are not in the original baseline file. The remaining `r nrow(amyloid_only_df) - nrow(amyloid_only_raw_df)` were removed from the baseline data because they already had MCI at baseline.
+
+
+### Combine and export the data
+
+```{r}
+baseline_matched_df =
+  baseline_df |>
+  filter(id %in% pull(amyloid_df, id))
+
+mci_df =
+  left_join(baseline_matched_df, amyloid_df, by = "id") |>
+  arrange(id, time)
+
+write_csv(mci_df, "./data/mci_combined.csv")
+
+head(mci_df)
+```
+
+After keeping only participants found in both datasets, the final dataset contains `r nrow(distinct(mci_df, id))` participants, `r nrow(mci_df)` rows, and `r ncol(mci_df)` columns. Each row represents one participant at one scheduled measurement time, with baseline demographic information repeated across visits. The final dataset was exported to `./data/mci_combined.csv`.
