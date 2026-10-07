@@ -17,6 +17,7 @@ library(tidyverse)
 subway_df =
   read_csv(
     "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv",
+    na = c("", "NA"),
     col_types = cols(
       Route1 = col_character(),
       Route2 = col_character(),
@@ -63,8 +64,7 @@ no_vending_df =
 
 There are `r nrow(station_df)` distinct stations, and `r nrow(ada_station_df)` are ADA compliant.
 
-Among entrances/exits without vending, `r round(mean(pull(no_vending_df, entry)) * 100, 2)`% allow entry.
-
+Among entrances/exits without vending, `r round(mean(pull(no_vending_df, entry), na.rm = TRUE) * 100, 2)`% allow entry.
 
 ### Reshape the route columns
 
@@ -94,7 +94,6 @@ head(subway_tidy_df)
 
 After reshaping, route number and route name are separate variables. There are `r nrow(a_station_df)` distinct stations serving the A train, and `r nrow(a_ada_station_df)` are ADA compliant.
 
-
 ## Problem 2
 
 ### Import and combine the Trash Wheel data
@@ -102,9 +101,10 @@ After reshaping, route number and route name are separate variables. There are `
 ```{r}
 mr_trash_df =
   readxl::read_excel(
-    "./data/202509 Trash Wheel Collection Data.xlsx",
+    "./data/202610 Trash Wheel Collection Data.xlsx",
     sheet = "Mr. Trash Wheel",
-    range = "A2:N710") |>
+    na = c("", "NA"),
+    range = "A2:N743") |>
   janitor::clean_names() |>
   drop_na(dumpster) |>
   mutate(
@@ -114,9 +114,10 @@ mr_trash_df =
 
 professor_trash_df =
   readxl::read_excel(
-    "./data/202509 Trash Wheel Collection Data.xlsx",
+    "./data/202610 Trash Wheel Collection Data.xlsx",
     sheet = "Professor Trash Wheel",
-    range = "A2:M135") |>
+    na = c("", "NA", "dive"),
+    range = "A2:M140") |>
   janitor::clean_names() |>
   drop_na(dumpster) |>
   mutate(
@@ -125,9 +126,10 @@ professor_trash_df =
 
 gwynnda_df =
   readxl::read_excel(
-    "./data/202509 Trash Wheel Collection Data.xlsx",
-    sheet = "Gwynns Falls Trash Wheel",
-    range = "A2:L352") |>
+    "./data/202610 Trash Wheel Collection Data.xlsx",
+    sheet = "Gwynnda the Good Wheel of the W",
+    na = c("", "NA"),
+    range = "A2:L395") |>
   janitor::clean_names() |>
   drop_na(dumpster) |>
   mutate(
@@ -141,10 +143,9 @@ trash_df =
 head(trash_df)
 ```
 
-I imported the three Trash Wheel sheets using the appropriate sheet and range arguments to exclude notes and non-data entries. I cleaned the variable names, removed rows without dumpster data, and added a variable identifying each Trash Wheel. For Mr. Trash Wheel, sports balls were rounded and converted to integers.
+I imported the three Trash Wheel sheets using the appropriate sheet and range arguments to exclude notes and non-data entries. I cleaned the variable names, removed rows without dumpster data, and added a variable identifying each Trash Wheel. For Mr. Trash Wheel, sports balls were rounded and converted to integers. I treated the nonnumeric plastic-bottle entry "dive" as missing.
 
-The combined tidy dataset has `r nrow(trash_df)` observations and `r ncol(trash_df)` variables. Each row represents one dumpster collection. Key variables include collection date, weight, volume, plastic bottles, and cigarette butts.
-
+The combined tidy dataset has `r nrow(trash_df)` observations and `r ncol(trash_df)` variables. Each row represents one dumpster collection. Key variables include collection date, weight, volume, plastic bottles, and cigarette butts. Missing trash counts were kept as NA.
 
 ### Calculate the requested totals
 
@@ -171,7 +172,6 @@ gwynnda_june_cigarettes =
 Professor Trash Wheel collected `r round(professor_total_weight, 2)` tons of trash in the available data.
 
 Gwynnda collected `r format(round(gwynnda_june_cigarettes), scientific = FALSE, big.mark = ",")` cigarette butts in June 2022.
-
 
 ## Problem 3
 
@@ -209,8 +209,10 @@ head(baseline_df)
 
 I skipped the first descriptive row, cleaned the variable names, treated missing-value codes as `NA`, and converted sex and APOE4 status from numeric codes to factors. Participants who already had MCI at baseline were removed. The cleaned data are tidy, with one row per participant.
 
-After excluding `r nrow(baseline_excluded_df)` participants who had MCI at baseline, the study included `r nrow(baseline_df)` participants.
-
+The original dataset contains `r nrow(baseline_raw_df)` participants.
+After excluding `r nrow(baseline_excluded_df)` participants who had MCI
+at baseline, `r nrow(baseline_df)` remained. The baseline data include
+age, sex, education, APOE4 status, and age at MCI onset.
 
 ```{r}
 mci_developed_df =
@@ -222,8 +224,7 @@ women_df =
   filter(sex == "female")
 ```
 
-Among the eligible participants, `r nrow(mci_developed_df)` developed MCI during follow-up. The average baseline age is `r round(mean(pull(baseline_df, current_age), na.rm = TRUE), 2)` years. Among women, `r round(mean(pull(women_df, apoe4) == "carrier") * 100, 1)`% are APOE4 carriers.
-
+Among the eligible participants, `r nrow(mci_developed_df)` developed MCI during follow-up. The average baseline age is `r round(mean(pull(baseline_df, current_age), na.rm = TRUE), 2)` years. Among women, `r round(mean(pull(women_df, apoe4) == "carrier", na.rm = TRUE) * 100, 1)`% are APOE4 carriers.
 
 ### Import and tidy the longitudinal biomarker data
 
@@ -277,7 +278,6 @@ amyloid_only_raw_df =
 There are `r nrow(baseline_only_df)` participants in the eligible baseline dataset who do not appear in the biomarker dataset, and `r nrow(amyloid_only_df)` participants in the biomarker dataset who do not appear in the eligible baseline dataset.
 
 Of the biomarker-only participants, `r nrow(amyloid_only_raw_df)` (IDs `r pull(amyloid_only_raw_df, id)`) are not in the original baseline file. The remaining `r nrow(amyloid_only_df) - nrow(amyloid_only_raw_df)` were removed from the baseline data because they already had MCI at baseline.
-
 
 ### Combine and export the data
 
